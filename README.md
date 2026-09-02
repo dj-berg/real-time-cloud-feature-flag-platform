@@ -1,152 +1,178 @@
 # 🚩 Real-Time Cloud Feature Flag Platform
 
-An AWS-based feature flag platform for **managing, evaluating, and delivering application feature flags in real time**.
+A cloud-based feature flag platform for controlling application features in real time without requiring a new application deployment.
 
-Built with **TypeScript, OpenFeature, AWS Lambda, DynamoDB, Kafka/MSK, Centrifugo, ECS/Fargate, and OpenTofu**, the platform demonstrates how application functionality can be controlled **independently from application deployments**.
+I built the platform using AWS, TypeScript, OpenFeature, DynamoDB, Kafka/MSK, Centrifugo, and OpenTofu. It includes a feature flag dashboard, real-time update pipeline, reusable TypeScript SDK, consumer application, and cloud infrastructure.
 
 ![CI](https://github.com/dj-berg/real-time-cloud-feature-flag-platform/actions/workflows/ci.yml/badge.svg)
 
 ---
 
-## 🎯 Project Overview
+## 🛠️ Technologies Used
 
-Modern applications often need to release, hide, or modify functionality without requiring a new deployment.
-
-This project demonstrates an end-to-end feature flag platform where:
-
-- 🚩 Operators manage feature flags through a centralized dashboard
-- 🗄️ Flag state and metadata are persisted in DynamoDB
-- ⚡ Changes propagate through an event-driven real-time pipeline
-- 📦 Applications evaluate flags through a reusable TypeScript SDK
-- 🔌 OpenFeature provides a standardized evaluation interface
-- 🔐 Application, tenant, and environment scopes isolate flag access
-
-The result is a system that connects **feature management, cloud infrastructure, real-time delivery, and application consumption** in one platform.
-
----
-
-## 📸 Feature Flag Management
-
-The **Feature Flag Control** dashboard provides a centralized interface for creating, searching, filtering, enabling, disabling, and deleting application feature flags.
-
-The example below changes the `fraud-alerts` flag from **disabled** to **enabled**.
-
-### Before — Flag Disabled
-
-![Feature Flag Dashboard with Fraud Alerts Disabled](docs/images/dashboard-flag-disabled.png)
-
-### After — Flag Enabled
-
-![Feature Flag Dashboard with Fraud Alerts Enabled](docs/images/dashboard-flag-enabled.png)
-
-The dashboard updates from **7 enabled / 1 disabled** to **8 enabled / 0 disabled**, reflecting the new persisted feature state.
+- TypeScript
+- JavaScript
+- React
+- Next.js
+- Node.js
+- AWS
+- AWS Lambda
+- DynamoDB & DynamoDB Streams
+- Kafka / Amazon MSK
+- Centrifugo
+- WebSockets
+- ECS / Fargate
+- OpenFeature
+- OpenTofu
+- GitHub Actions
 
 ---
 
-## 🏗️ System Architecture
+## 🚩 1. Build the Feature Flag Dashboard
 
-```text
-                    ┌──────────────────────┐
-                    │   Operator / Admin   │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │ Feature Flag Control │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │   Feature Flag API   │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │      DynamoDB        │
-                    └──────────┬───────────┘
-                               │
-                        DynamoDB Streams
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │  Lambda Publisher    │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │    Kafka / MSK       │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │     Centrifugo       │
-                    │    ECS / Fargate     │
-                    └──────────┬───────────┘
-                               │
-                          WebSocket / WSS
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │ Consumer Application │
-                    └──────────────────────┘
-```
+I created a dashboard for managing application feature flags from one place.
 
-When an operator changes a feature flag, the API persists the new state in **DynamoDB**. DynamoDB Streams captures the change, a **Lambda** publisher sends the event through **Kafka/MSK**, and **Centrifugo** delivers the update to connected applications over WebSockets.
+The dashboard allows an operator to:
 
-The consumer can then evaluate the updated flag and change its behavior without requiring a new application deployment.
+- Create feature flags
+- Search and filter flags
+- Enable and disable features
+- Delete flags
+- View application and environment information
 
----
-
-## ⚡ Feature Flags in Action
-
-The consumer application demonstrates the result of a feature flag change from the application's perspective.
+For example, the `fraud-alerts` feature can be switched from disabled to enabled through the dashboard.
 
 ### Before — Feature Disabled
 
-With `fraud-alerts` disabled, **Fraud Alerts is unavailable** in the consumer application.
-
-![Consumer Application Before Feature Flag Change](docs/images/consumer-flag-disabled.png)
+![Feature Flag Dashboard with Fraud Alerts Disabled](docs/images/dashboard-flag-disabled.png)
 
 ### After — Feature Enabled
 
-After the operator enables the flag, **Fraud Alerts becomes available** to the consumer.
+![Feature Flag Dashboard with Fraud Alerts Enabled](docs/images/dashboard-flag-enabled.png)
 
-![Consumer Application After Feature Flag Change](docs/images/consumer-flag-enabled.png)
-
-> **Application functionality can be controlled through feature flag state rather than requiring a new deployment.**
+The dashboard reflects the new state after the change is saved.
 
 ---
 
-## 🔍 Verification
+## 🗄️ 2. Store Feature Flags in DynamoDB
 
-The demonstration includes visibility into the underlying storage and real-time communication layers.
+Feature flag information is stored in Amazon DynamoDB.
 
-### 🗄️ Persistent Feature Flag State
-
-Feature flags are stored as structured records in **Amazon DynamoDB**.
-
-![Feature Flag Records Stored in DynamoDB](docs/images/dynamodb-feature-flags.png)
-
-Records contain information such as:
+Each flag can include information such as:
 
 - Flag key
-- Enabled/disabled state
-- Application scope
-- Account scope
+- Enabled or disabled state
+- Application
+- Account
 - Environment
 - Description
 - Schema version
-- Creation metadata
+- Creation information
 
-### 📡 Real-Time Client Connection
+![Feature Flag Records Stored in DynamoDB](docs/images/dynamodb-feature-flags.png)
 
-Connected applications maintain a persistent real-time connection through **Centrifugo**.
+This gives the platform a central source for the current state and configuration of each feature flag.
+
+---
+
+## ⚡ 3. Send Flag Changes Through the Real-Time Pipeline
+
+When a feature flag changes, the update moves through an event-driven pipeline instead of requiring the consumer application to constantly check for changes.
+
+The platform works like this:
+
+```text
+Feature Flag Dashboard
+        │
+        ▼
+ Feature Flag API
+        │
+        ▼
+     DynamoDB
+        │
+        ▼
+ DynamoDB Streams
+        │
+        ▼
+ Lambda Publisher
+        │
+        ▼
+   Kafka / MSK
+        │
+        ▼
+    Centrifugo
+   ECS / Fargate
+        │
+        ▼
+ WebSocket / WSS
+        │
+        ▼
+Consumer Application
+```
+
+The API first saves the new flag state in DynamoDB.
+
+DynamoDB Streams captures the change, a Lambda function publishes the event through Kafka/MSK, and Centrifugo delivers the update to connected applications through WebSockets.
+
+This allows feature changes to reach applications in real time.
+
+---
+
+## 📡 4. Maintain a Real-Time Client Connection
+
+The consumer application maintains a WebSocket connection through Centrifugo so it can receive feature flag updates.
 
 ![Active WebSocket Connection](docs/images/websocket-connection.png)
 
-The browser network trace shows a successful WebSocket protocol upgrade with HTTP status **101**, providing the persistent connection used for real-time flag delivery.
+The browser network trace shows an HTTP **101 Switching Protocols** response, confirming that the WebSocket connection was successfully established.
 
-Together, the six project screenshots demonstrate the complete path from managing a feature flag to changing consumer application behavior:
+Once connected, the application can receive new flag information without requiring a page refresh or new deployment.
+
+---
+
+## 📦 5. Create a Reusable TypeScript SDK
+
+I created a TypeScript SDK so applications can work with the feature flag platform without directly implementing the underlying API and evaluation logic themselves.
+
+The SDK includes:
+
+- Feature flag evaluation
+- TypeScript interfaces
+- React integration
+- Browser-compatible builds
+- Consumer integration patterns
+- OpenFeature provider integration
+
+I also added an **OpenFeature provider**, allowing applications to evaluate flags through a standardized feature flag interface.
+
+A Next.js integration example is included in:
+
+```text
+examples/next-openfeature/
+```
+
+Additional SDK and integration documentation is available in:
+
+```text
+consumer-sdk/README.md
+docs/consumer-integration.md
+```
+
+---
+
+## 💻 6. Connect a Consumer Application
+
+I built a consumer application to demonstrate how an application can respond to feature flag changes.
+
+With `fraud-alerts` disabled, the feature is unavailable:
+
+![Consumer Application Before Feature Flag Change](docs/images/consumer-flag-disabled.png)
+
+After the flag is enabled from the dashboard, the updated state reaches the consumer application and Fraud Alerts becomes available:
+
+![Consumer Application After Feature Flag Change](docs/images/consumer-flag-enabled.png)
+
+The complete flow is:
 
 ```text
 Manage Flag
@@ -167,95 +193,49 @@ Evaluate Flag
 Change Application Behavior
 ```
 
----
-
-## 🛠️ Technology Stack
-
-| Area | Technologies |
-| --- | --- |
-| **Application** | Node.js, JavaScript, TypeScript, React, Next.js |
-| **Feature Flags** | OpenFeature, Custom TypeScript SDK |
-| **Cloud Platform** | AWS |
-| **Compute** | AWS Lambda, ECS/Fargate |
-| **Storage** | DynamoDB, DynamoDB Streams |
-| **Messaging** | Kafka / Amazon MSK |
-| **Real-Time Delivery** | Centrifugo, WebSockets / WSS |
-| **Authentication** | JWT-based application and tenant scoping |
-| **Infrastructure as Code** | OpenTofu |
-| **Build Tooling** | npm, TypeScript, Babel |
-| **CI/CD** | GitHub Actions |
-| **Security** | Gitleaks, npm audit |
-| **Version Control** | Git, GitHub |
+This demonstrates the main purpose of the platform: **application functionality can change through feature flag state without requiring a new application deployment.**
 
 ---
 
-## 📦 SDK & OpenFeature Integration
+## ☁️ 7. Define the Cloud Infrastructure
 
-The platform includes a reusable **TypeScript SDK** so consuming applications do not need to directly implement the underlying feature flag API and evaluation behavior.
+I used **OpenTofu** to define the AWS infrastructure as code.
 
-The SDK provides:
+The infrastructure covers the cloud resources needed for areas such as:
 
-- Feature flag evaluation
-- TypeScript interfaces
-- React integration
-- Browser-compatible builds
-- Consumer integration patterns
-- OpenFeature provider integration
+- DynamoDB
+- Lambda
+- Kafka / Amazon MSK
+- Centrifugo
+- ECS / Fargate
+- Networking and supporting infrastructure
 
-The **OpenFeature provider** allows applications to evaluate flags through a standardized interface rather than coupling application code directly to platform-specific evaluation logic.
-
-A Next.js integration example is included under:
-
-[`examples/next-openfeature/`](examples/next-openfeature/)
-
-For additional integration details:
-
-- [`consumer-sdk/README.md`](consumer-sdk/README.md)
-- [`docs/consumer-integration.md`](docs/consumer-integration.md)
+Keeping infrastructure definitions in the repository makes the cloud architecture easier to track, validate, and reproduce.
 
 ---
 
-## 📁 Project Structure
+## 🧪 8. Add Testing, CI, and Security Checks
 
-| Component | Purpose |
-| --- | --- |
-| `.github/` | GitHub Actions CI workflows |
-| `functions/` | API, authorization, and stream-processing Lambda packages |
-| `consumer-sdk/` | TypeScript SDK, React integration, and OpenFeature provider |
-| `local-app/` | Operator-facing Feature Flag Control dashboard |
-| `consumer-app/` | Application demonstrating feature flag consumption |
-| `test-consumer/` | Minimal SDK consumer implementation |
-| `examples/` | Application integration examples |
-| `tofu/` | Core AWS infrastructure definitions |
-| `infra/` | Centrifugo, ECS/Fargate, and related infrastructure |
-| `scripts/` | Repository validation and utility scripts |
-| `shared/` | Shared platform components |
-| `docs/` | Detailed architecture and engineering documentation |
+I added automated validation to check the application, SDK, integrations, and infrastructure.
 
----
-
-## 🧪 Testing, CI & Security
-
-The repository includes credential-free validation for the application, SDK, integrations, and infrastructure.
-
-Run the complete repository validation:
+The main repository check can be run with:
 
 ```bash
 npm run check
 ```
 
-Automated validation covers:
+Validation includes:
 
-- ✅ TypeScript SDK builds and type checking
-- ✅ SDK tests
-- ✅ Consumer integration checks
-- ✅ Local application build validation
-- ✅ Next.js/OpenFeature integration validation
-- ✅ OpenTofu formatting and configuration validation
-- ✅ Dependency auditing
-- ✅ Secret scanning
+- TypeScript SDK builds and type checking
+- SDK tests
+- Consumer integration checks
+- Application build validation
+- Next.js and OpenFeature integration validation
+- OpenTofu formatting and configuration validation
+- Dependency auditing
+- Secret scanning
 
-Additional checks are available through:
+Additional checks include:
 
 ```bash
 npm run lint
@@ -263,9 +243,7 @@ npm run format
 npm run security
 ```
 
-**GitHub Actions** automatically validates repository changes, while **Gitleaks** and dependency auditing help detect accidentally committed secrets and vulnerable dependencies.
-
-Infrastructure validation does not plan, apply, mutate state, or deploy AWS resources.
+GitHub Actions runs automated repository checks, while Gitleaks and dependency auditing help identify accidentally committed secrets and vulnerable dependencies.
 
 ---
 
@@ -293,18 +271,16 @@ cd real-time-cloud-feature-flag-platform
 npm run setup
 ```
 
-The setup process installs the required project dependencies and does not deploy AWS resources.
-
 ### Configure Environment Variables
 
-Environment templates are provided for the applications.
+Environment templates are included for the applications:
 
 ```bash
 cp local-app/.env.example local-app/.env
 cp consumer-app/.env.example consumer-app/.env
 ```
 
-Populate the required values for your environment before starting the applications.
+Add the required values for your environment before starting the applications.
 
 > Never commit `.env` files, credentials, private keys, state files, or environment-specific secrets.
 
@@ -350,82 +326,99 @@ http://localhost:3002
 npm run check
 ```
 
-> Running the applications locally does not itself deploy the underlying AWS infrastructure. Live demonstrations require reachable API and real-time services.
+Running the applications locally does not automatically deploy the AWS infrastructure. A live end-to-end demonstration requires reachable API and real-time services.
 
 ---
 
-## 📚 Technical Documentation
+## 🧠 What I Learned
 
-Detailed engineering and operational documentation is available throughout the repository.
+This project gave me experience building a system across frontend development, backend services, cloud infrastructure, and real-time communication.
 
-- [Current Architecture](docs/current-architecture.md) — System architecture and runtime contracts
-- [Consumer Integration](docs/consumer-integration.md) — SDK, authentication, API usage, and real-time behavior
-- [SDK Documentation](consumer-sdk/README.md) — TypeScript SDK and integration guidance
-- [Next.js + OpenFeature](examples/next-openfeature/README.md) — OpenFeature integration example
-- [Real-Time Reliability](docs/realtime-reliability-validation.md) — Real-time event pipeline validation
-- [Production Readiness](docs/production-readiness.md) — Security, monitoring, rollback, and operational considerations
-- [Publication Checklist](docs/publication-checklist.md) — Standalone portfolio publication checks
-- [Security](SECURITY.md) — Repository security guidance
-- [Contributing](CONTRIBUTING.md) — Contribution guidelines
+I practiced:
+
+- Designing cloud application architecture
+- Building REST API functionality
+- Working with AWS Lambda and DynamoDB
+- Using DynamoDB Streams for event-driven processing
+- Working with Kafka / Amazon MSK
+- Delivering real-time updates through WebSockets
+- Running services with ECS / Fargate
+- Building a reusable TypeScript SDK
+- Integrating OpenFeature
+- Connecting React and Next.js applications to feature flags
+- Defining AWS infrastructure with OpenTofu
+- Building CI workflows with GitHub Actions
+- Adding dependency and secret scanning
+- Testing integrations across multiple parts of a system
+
+The biggest takeaway was understanding how multiple services can work together to take one change and deliver it across an application in real time:
+
+**Manage → Store → Publish → Deliver → Evaluate → Update**
 
 ---
 
-## 💡 Engineering Highlights
-
-This project demonstrates experience with:
-
-- Cloud application architecture
-- Event-driven systems
-- Feature flag platform design
-- REST API development
-- TypeScript SDK development
-- OpenFeature integration
-- Tenant-scoped authentication
-- Real-time messaging
-- WebSocket communication
-- React and Next.js integration
-- DynamoDB data modeling
-- AWS Lambda
-- Kafka / Amazon MSK
-- ECS/Fargate
-- Infrastructure as Code
-- OpenTofu
-- CI/CD
-- Automated security scanning
-- Technical documentation
-
-The central engineering flow demonstrated by the project is:
+## 📁 Repository Structure
 
 ```text
-Manage a Feature
-       │
-       ▼
-Persist its State
-       │
-       ▼
-Propagate its Change
-       │
-       ▼
-Evaluate the Flag
-       │
-       ▼
-Change Consumer Behavior
+real-time-cloud-feature-flag-platform/
+│
+├── .github/
+├── consumer-app/
+├── consumer-sdk/
+├── docs/
+├── examples/
+├── functions/
+├── infra/
+├── local-app/
+├── scripts/
+├── shared/
+├── test-consumer/
+├── tofu/
+│
+├── .gitignore
+├── CONTRIBUTING.md
+├── README.md
+├── SECURITY.md
+└── package.json
 ```
 
-Rather than representing only a management interface, the repository demonstrates the surrounding platform required to **store, distribute, evaluate, and consume feature flags across applications**.
+### Main Components
+
+| Folder | Purpose |
+|---|---|
+| `consumer-app/` | Application demonstrating feature flag consumption |
+| `consumer-sdk/` | TypeScript SDK and OpenFeature provider |
+| `functions/` | API, authorization, and event-processing Lambda packages |
+| `local-app/` | Feature Flag Control dashboard |
+| `examples/` | Application integration examples |
+| `test-consumer/` | Minimal SDK consumer |
+| `tofu/` | Core AWS infrastructure definitions |
+| `infra/` | Centrifugo, ECS/Fargate, and related infrastructure |
+| `shared/` | Shared platform components |
+| `scripts/` | Validation and utility scripts |
+| `docs/` | Architecture and engineering documentation |
+
+---
+
+## 📚 Documentation
+
+More detailed technical documentation is available throughout the repository:
+
+- [Current Architecture](docs/current-architecture.md)
+- [Consumer Integration](docs/consumer-integration.md)
+- [SDK Documentation](consumer-sdk/README.md)
+- [Next.js + OpenFeature Example](examples/next-openfeature/README.md)
+- [Real-Time Reliability](docs/realtime-reliability-validation.md)
+- [Production Readiness](docs/production-readiness.md)
+- [Security](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
 ---
 
 ## ⚠️ Project Context
 
-This repository is a **standalone portfolio implementation** demonstrating real-time feature flag platform architecture and modern software engineering practices.
+This repository is a portfolio implementation of a real-time feature flag platform.
 
-It is intended as an architectural and engineering demonstration rather than a production-certified hosted service.
+It demonstrates the architecture and engineering behind storing, distributing, evaluating, and consuming feature flags across applications. It is not presented as a production-certified hosted service.
 
-Environment-specific credentials, private configuration, proprietary infrastructure, and other sensitive deployment artifacts are not included.
-
----
-
-## 📄 License
-
-This project is provided as a portfolio and educational software engineering demonstration.
+Environment-specific credentials, private configuration, and sensitive deployment information are not included.
