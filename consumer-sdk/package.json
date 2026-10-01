@@ -41,7 +41,7 @@
     "test": "npm run build && node --test test/*.test.mjs test/openfeature/*.test.mjs test/react/*.test.mjs"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.3.0",
     "typescript": "^5.9.2"
   }
 }
